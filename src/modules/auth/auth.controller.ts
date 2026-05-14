@@ -1,0 +1,55 @@
+import { Request, Response } from "express";
+import { registerSchema, loginSchema, refreshSchema } from "./auth.schema";
+import * as authService from "./auth.service";
+import { sendSuccess, sendError } from "../../utils/response";
+
+export const register = async (req: Request, res: Response) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    sendError(res, "Validation failed", 400, parsed.error.flatten());
+    return;
+  }
+  try {
+    const result = await authService.register(parsed.data);
+    sendSuccess(res, result, "Registered successfully", 201);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Registration failed";
+    sendError(res, message, 400);
+  }
+};
+
+export const login = async (req: Request, res: Response) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    sendError(res, "Validation failed", 400, parsed.error.flatten());
+    return;
+  }
+  try {
+    const result = await authService.login(parsed.data);
+    sendSuccess(res, result, "Logged in successfully");
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Login failed";
+    sendError(res, message, 401);
+  }
+};
+
+export const refresh = async (req: Request, res: Response) => {
+  const parsed = refreshSchema.safeParse(req.body);
+  if (!parsed.success) {
+    sendError(res, "Validation failed", 400);
+    return;
+  }
+  try {
+    const tokens = await authService.refresh(parsed.data.refreshToken);
+    sendSuccess(res, tokens, "Token refreshed");
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Refresh failed";
+    sendError(res, message, 401);
+  }
+};
+
+export const logout = async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  if (refreshToken) await authService.logout(refreshToken);
+  sendSuccess(res, null, "Logged out successfully");
+};

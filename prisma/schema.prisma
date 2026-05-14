@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  LANDLORD
+  TENANT
+}
+
+enum PropertyType {
+  FLAT
+  HOUSE
+  ROOM
+  LAND
+  COMMERCIAL
+}
+
+enum PropertyPurpose {
+  RENT
+  SALE
+  BOTH
+}
+
+enum PropertyStatus {
+  PENDING
+  ACTIVE
+  RENTED
+  SOLD
+  INACTIVE
+}
+
+enum LeaseStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  FAILED
+}
+
+enum PaymentGateway {
+  KHALTI
+  ESEWA
+  CASH
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?  @unique
+  phone        String   @unique
+  passwordHash String
+  role         Role     @default(TENANT)
+  avatar       String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  kyc              Kyc?
+  properties       Property[]
+  leases           Lease[]
+  sentMessages     Message[]     @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
+  refreshTokens    RefreshToken[]
+  savedProperties  SavedProperty[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Kyc {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  citizenshipNo  String
+  citizenshipFront String
+  citizenshipBack  String
+  selfie         String
+  status         KycStatus @default(PENDING)
+  rejectedReason String?
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("kyc")
+}
+
+model Property {
+  id          String          @id @default(cuid())
+  landlordId  String
+  landlord    User            @relation(fields: [landlordId], references: [id])
+  title       String
+  description String
+  type        PropertyType
+  purpose     PropertyPurpose
+  status      PropertyStatus  @default(PENDING)
+
+  price       Float
+  negotiable  Boolean         @default(false)
+  deposit     Float?
+
+  address     String
+  city        String
+  district    String
+  lat         Float
+  lng         Float
+
+  area        Float?
+  floor       Int?
+  totalFloors Int?
+  bedrooms    Int?
+  bathrooms   Int?
+
+  features    Json
+  images      String[]
+  videoUrl    String?
+
+  views       Int             @default(0)
+  isVerified  Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  leases         Lease[]
+  messages       Message[]
+  savedByUsers   SavedProperty[] @relation("savedByUsers")
+
+  @@map("properties")
+}
+
+model Lease {
+  id          String      @id @default(cuid())
+  propertyId  String
+  property    Property    @relation(fields: [propertyId], references: [id])
+  tenantId    String
+  tenant      User        @relation(fields: [tenantId], references: [id])
+  monthlyRent Float
+  deposit     Float
+  startDate   DateTime
+  endDate     DateTime
+  status      LeaseStatus @default(ACTIVE)
+  agreementUrl String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  payments    Payment[]
+
+  @@map("leases")
+}
+
+model Payment {
+  id         String         @id @default(cuid())
+  leaseId    String
+  lease      Lease          @relation(fields: [leaseId], references: [id])
+  amount     Float
+  forMonth   DateTime
+  status     PaymentStatus  @default(PENDING)
+  gateway    PaymentGateway
+  txnId      String?
+  paidAt     DateTime?
+  dueDate    DateTime
+  createdAt  DateTime       @default(now())
+
+  @@map("payments")
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  propertyId  String?
+  property    Property? @relation(fields: [propertyId], references: [id])
+  content     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("messages")
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation("savedByUsers", fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+  @@map("saved_properties")
+}
