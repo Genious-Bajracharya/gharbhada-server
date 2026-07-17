@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthRequest } from "../../types";
 import { prisma } from "../../lib/prisma";
 import { sendSuccess, sendError, paginate } from "../../utils/response";
+import { sendKycApprovedEmail, sendKycRejectedEmail } from "../../lib/email";
 import { z } from "zod";
 
 export const getMe = async (req: AuthRequest, res: Response) => {
@@ -91,6 +92,9 @@ export const reviewKyc = async (req: AuthRequest, res: Response) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { sendError(res, "Validation failed", 400); return; }
 
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) { sendError(res, "User not found", 404); return; }
+
   const kyc = await prisma.kyc.update({
     where: { userId: req.params.id },
     data: {
@@ -99,5 +103,33 @@ export const reviewKyc = async (req: AuthRequest, res: Response) => {
       verifiedAt: parsed.data.status === "VERIFIED" ? new Date() : null,
     },
   });
+
+  if (parsed.data.status === "VERIFIED") {
+    await sendKycApprovedEmail(user.name, user.email || "");
+  } else if (parsed.data.status === "REJECTED") {
+    await sendKycRejectedEmail(user.name, user.email || "", parsed.data.rejectedReason || "Document verification failed");
+  }
+
   sendSuccess(res, kyc, "KYC reviewed");
+};
+
+export const listPendingKyc = async (req: AuthRequest, res: Response) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 20;
+
+  const [kycList, total] = await Promise.all([
+    prisma.kyc.findMany({
+      where: { status: "PENDING" },
+      include: {
+        user: {
+          select: { id: true, name: true, phone: true, email: true, createdAt: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      ...paginate(page, limit),
+    }),
+    prisma.kyc.count({ where: { status: "PENDING" } }),
+  ]);
+
+  sendSuccess(res, { kyc: kycList, total, page, pages: Math.ceil(total / limit) });
 };

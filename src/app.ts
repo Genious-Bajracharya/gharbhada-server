@@ -10,6 +10,7 @@ import leasesRoutes from "./modules/leases/leases.routes";
 import paymentsRoutes from "./modules/payments/payments.routes";
 import messagesRoutes from "./modules/messages/messages.routes";
 import uploadRoutes from "./modules/uploads/upload.routes";
+import reviewsRoutes from "./modules/reviews/reviews.routes";
 
 const app = express();
 
@@ -27,5 +28,6 @@ app.use("/api/leases", leasesRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/messages", messagesRoutes);
 app.use("/api/uploads", uploadRoutes);
+app.use("/api", reviewsRoutes);
 
 export default app;

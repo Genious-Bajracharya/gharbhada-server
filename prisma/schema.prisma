@@ -80,6 +80,7 @@ model User {
   receivedMessages Message[]     @relation("ReceivedMessages")
   refreshTokens    RefreshToken[]
   savedProperties  SavedProperty[]
+  reviews          Review[]
 
   @@map("users")
 }
@@ -150,6 +151,7 @@ model Property {
   leases         Lease[]
   messages       Message[]
   savedByUsers   SavedProperty[] @relation("savedByUsers")
+  reviews        Review[]
 
   @@map("properties")
 }
@@ -215,4 +217,18 @@ model SavedProperty {
 
   @@unique([userId, propertyId])
   @@map("saved_properties")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5
+  comment    String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+  @@map("reviews")
 }

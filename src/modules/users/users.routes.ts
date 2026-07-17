@@ -12,6 +12,7 @@ router.get("/", authenticate, requireRole("ADMIN"), usersController.listUsers);
 router.patch("/:id/suspend", authenticate, requireRole("ADMIN"), usersController.suspendUser);
 
 router.post("/kyc", authenticate, usersController.submitKyc);
+router.get("/admin/kyc", authenticate, requireRole("ADMIN"), usersController.listPendingKyc);
 router.patch("/:id/kyc", authenticate, requireRole("ADMIN"), usersController.reviewKyc);
 
 export default router;

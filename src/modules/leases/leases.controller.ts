@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AuthRequest } from "../../types";
 import { prisma } from "../../lib/prisma";
 import { sendSuccess, sendError } from "../../utils/response";
+import { sendLeaseCreatedEmail } from "../../lib/email";
 
 const createLeaseSchema = z.object({
   propertyId: z.string(),
@@ -32,7 +33,7 @@ export const createLease = async (req: AuthRequest, res: Response) => {
       },
       include: {
         property: { select: { id: true, title: true, address: true } },
-        tenant: { select: { id: true, name: true, phone: true } },
+        tenant: { select: { id: true, name: true, phone: true, email: true } },
       },
     }),
     prisma.property.update({
@@ -40,6 +41,15 @@ export const createLease = async (req: AuthRequest, res: Response) => {
       data: { status: "RENTED" },
     }),
   ]);
+
+  await sendLeaseCreatedEmail(
+    lease.tenant.name,
+    lease.tenant.email || "",
+    lease.property.title,
+    lease.startDate,
+    lease.endDate,
+    lease.monthlyRent
+  );
 
   sendSuccess(res, lease, "Lease created", 201);
 };
