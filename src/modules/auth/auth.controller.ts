@@ -3,6 +3,13 @@ import { registerSchema, loginSchema, refreshSchema } from "./auth.schema";
 import * as authService from "./auth.service";
 import { sendSuccess, sendError } from "../../utils/response";
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict" as const,
+};
+
+
 export const register = async (req: Request, res: Response) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -26,7 +33,21 @@ export const login = async (req: Request, res: Response) => {
   }
   try {
     const result = await authService.login(parsed.data);
-    sendSuccess(res, result, "Logged in successfully");
+    res.cookie("refreshToken", result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.cookie("accessToken", result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000,
+    });
+
+    sendSuccess(res, result.user, "Logged in successfully");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Login failed";
     sendError(res, message, 401);
@@ -49,7 +70,9 @@ export const refresh = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
+  const refreshToken = req.cookies.refreshToken;
   if (refreshToken) await authService.logout(refreshToken);
+  res.clearCookie("refreshToken",cookieOptions);
+  res.clearCookie("accessToken",cookieOptions);
   sendSuccess(res, null, "Logged out successfully");
 };

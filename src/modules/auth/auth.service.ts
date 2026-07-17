@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../../lib/prisma";
 import { RegisterInput, LoginInput } from "./auth.schema";
 import { AuthPayload } from "../../types";
+import { createHash } from "node:crypto";
 
 const generateTokens = (payload: AuthPayload) => {
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
@@ -50,9 +51,13 @@ export const login = async (input: LoginInput) => {
   if (!valid) throw new Error("Invalid credentials");
 
   const tokens = generateTokens({ userId: user.id, role: user.role });
+  const hashedToken =createHash("sha256")
+  .update(tokens.refreshToken)
+  .digest("hex");
+
   await prisma.refreshToken.create({
     data: {
-      token: tokens.refreshToken,
+      token: hashedToken,
       userId: user.id,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
