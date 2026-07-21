@@ -1,7 +1,6 @@
 import { Router } from "express";
 import * as authController from "./auth.controller";
-import { authLimiter, refreshLimiter } from "@/middlewares/rateLimiter";
-
+import { authLimiter,refreshLimiter } from "../../middlewares/rateLimiter";
 const router = Router();
 
 router.post("/register", authController.register);
