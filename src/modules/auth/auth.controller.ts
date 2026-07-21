@@ -55,7 +55,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const refresh = async (req: Request, res: Response) => {
-  const parsed = refreshSchema.safeParse(req.body);
+  const parsed = refreshSchema.safeParse(req.cookies.refreshToken);
   if (!parsed.success) {
     sendError(res, "Validation failed", 400);
     return;

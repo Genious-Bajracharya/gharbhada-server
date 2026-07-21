@@ -16,10 +16,16 @@ const generateTokens = (payload: AuthPayload) => {
 };
 
 export const register = async (input: RegisterInput) => {
-  const existing = await prisma.user.findUnique({ where: { phone: input.phone } });
-  if (existing) throw new Error("Phone number already registered");
+  const existing = await prisma.user.findUnique({
+    where: { phone: input.phone },
+  });
+
+  if (existing) {
+    throw new Error("Phone number already registered");
+  }
 
   const passwordHash = await bcrypt.hash(input.password, 12);
+
   const user = await prisma.user.create({
     data: {
       name: input.name,
@@ -28,13 +34,28 @@ export const register = async (input: RegisterInput) => {
       passwordHash,
       role: input.role,
     },
-    select: { id: true, name: true, phone: true, email: true, role: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      role: true,
+      createdAt: true,
+    },
   });
 
-  const tokens = generateTokens({ userId: user.id, role: user.role });
+  const tokens = generateTokens({
+    userId: user.id,
+    role: user.role,
+  });
+
+  const hashedToken = createHash("sha256")
+    .update(tokens.refreshToken)
+    .digest("hex");
+
   await prisma.refreshToken.create({
     data: {
-      token: tokens.refreshToken,
+      token: hashedToken,
       userId: user.id,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
