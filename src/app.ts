@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import { globalLimiter } from "./middlewares/rateLimiter";
 
 import authRoutes from "./modules/auth/auth.routes";
 import usersRoutes from "./modules/users/users.routes";
@@ -13,6 +14,8 @@ import messagesRoutes from "./modules/messages/messages.routes";
 import uploadRoutes from "./modules/uploads/upload.routes";
 import reviewsRoutes from "./modules/reviews/reviews.routes";
 
+
+
 const app = express();
 
 app.use(helmet());
@@ -20,6 +23,7 @@ app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser())
+app.use(globalLimiter)
 
 app.get("/health", (_, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
 
