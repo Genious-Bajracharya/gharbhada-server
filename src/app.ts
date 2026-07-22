@@ -23,7 +23,7 @@ app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser())
-app.use(globalLimiter)
+// app.use(globalLimiter)
 
 app.get("/health", (_, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
 

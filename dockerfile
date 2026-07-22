@@ -1,15 +1,17 @@
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-COPY backend/package.json backend/pnpm-lock.yaml ./backend/
+RUN apt-get update -y && apt-get install -y openssl
 
 RUN npm install -g pnpm
-RUN cd backend && pnpm install --frozen-lockfile
 
-COPY backend ./backend
+COPY package.json pnpm-lock.yaml ./
 
-WORKDIR /app/backend
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
 RUN pnpm prisma generate
 
 EXPOSE 5000
