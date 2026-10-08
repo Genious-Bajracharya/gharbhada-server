@@ -22,4 +22,6 @@ router.post(
   uploadController.uploadVideo
 );
 
+router.post("/kyc", authenticate, upload.single("image"), uploadController.uploadKycImage);
+
 export default router;

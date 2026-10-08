@@ -29,3 +29,22 @@ export const uploadVideo = async (req: AuthRequest, res: Response) => {
     sendError(res, "Video upload failed", 500);
   }
 };
+
+export const uploadKycImage = async (req: AuthRequest, res: Response) => {
+  const file = req.file;
+  if (!file || !file.mimetype.startsWith("image/")) {
+    sendError(res, "An image file is required", 400);
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    sendError(res, "Image must be under 10MB", 400);
+    return;
+  }
+
+  try {
+    const result = await uploadToCloudinary(file.buffer, "kyc");
+    sendSuccess(res, { url: result.secure_url }, "Image uploaded");
+  } catch {
+    sendError(res, "Image upload failed", 500);
+  }
+};

@@ -11,7 +11,16 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     select: {
       id: true, name: true, phone: true, email: true,
       role: true, avatar: true, isActive: true, createdAt: true,
-      kyc: { select: { status: true } },
+      kyc: {
+        select: {
+          status: true,
+          rejectedReason: true,
+          citizenshipNo: true,
+          citizenshipFront: true,
+          citizenshipBack: true,
+          selfie: true,
+        },
+      },
     },
   });
   if (!user) { sendError(res, "User not found", 404); return; }
@@ -74,7 +83,19 @@ export const submitKyc = async (req: AuthRequest, res: Response) => {
     selfie: z.string().url(),
   });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) { sendError(res, "Validation failed", 400, parsed.error.flatten()); return; }
+  if (!parsed.success) { 
+    const existing = await prisma.kyc.findUnique({
+      where: { userId: req.user!.userId },
+      select: { status: true },
+    });
+    if (existing && (existing.status === "PENDING" || existing.status === "VERIFIED")) {
+      sendError(res, `KYC is already ${existing.status.toLowerCase()}`, 400);
+      return;
+    }
+    sendError(res, "Validation failed", 400, parsed.error.flatten()); 
+    return; 
+  }
+
 
   const kyc = await prisma.kyc.upsert({
     where: { userId: req.user!.userId },
@@ -94,6 +115,9 @@ export const reviewKyc = async (req: AuthRequest, res: Response) => {
 
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) { sendError(res, "User not found", 404); return; }
+
+  const existingKyc = await prisma.kyc.findUnique({ where: { userId: req.params.id } });
+  if (!existingKyc) { sendError(res, "KYC submission not found", 404); return; }
 
   const kyc = await prisma.kyc.update({
     where: { userId: req.params.id },
