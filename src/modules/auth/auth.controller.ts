@@ -18,6 +18,19 @@ export const register = async (req: Request, res: Response) => {
   }
   try {
     const result = await authService.register(parsed.data);
+    res.cookie("refreshToken", result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.cookie("accessToken", result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000,
+    });
     sendSuccess(res, result, "Registered successfully", 201);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Registration failed";
