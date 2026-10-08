@@ -68,16 +68,28 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const refresh = async (req: Request, res: Response) => {
-  const parsed = refreshSchema.safeParse(req.cookies.refreshToken);
+  const parsed = refreshSchema.safeParse({ refreshToken: req.cookies.refreshToken });
   if (!parsed.success) {
-    sendError(res, "Validation failed", 400);
+    sendError(res, "No refresh token provided", 401);
     return;
   }
   try {
     const tokens = await authService.refresh(parsed.data.refreshToken);
-    sendSuccess(res, tokens, "Token refreshed");
+
+    res.cookie("refreshToken", tokens.refreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    res.cookie("accessToken", tokens.accessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    sendSuccess(res, null, "Token refreshed");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Refresh failed";
+    res.clearCookie("refreshToken", cookieOptions);
+    res.clearCookie("accessToken", cookieOptions);
     sendError(res, message, 401);
   }
 };

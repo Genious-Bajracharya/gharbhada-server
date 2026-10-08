@@ -89,9 +89,6 @@ export const login = async (input: LoginInput) => {
 };
 
 export const refresh = async (token: string) => {
-  const stored = await prisma.refreshToken.findUnique({ where: { token } });
-  if (!stored || stored.expiresAt < new Date()) throw new Error("Invalid refresh token");
-
   let payload: AuthPayload;
   try {
     payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as AuthPayload;
@@ -99,16 +96,27 @@ export const refresh = async (token: string) => {
     throw new Error("Invalid refresh token");
   }
 
-  await prisma.refreshToken.delete({ where: { token } });
+  // Tokens are stored hashed 
+  const hashedToken = createHash("sha256").update(token).digest("hex");
+  const stored = await prisma.refreshToken.findUnique({ where: { token: hashedToken } });
+  if (!stored || stored.expiresAt < new Date()) throw new Error("Invalid refresh token");
 
   const newTokens = generateTokens({ userId: payload.userId, role: payload.role });
-  await prisma.refreshToken.create({
-    data: {
-      token: newTokens.refreshToken,
-      userId: payload.userId,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
+  const newHashedToken = createHash("sha256")
+    .update(newTokens.refreshToken)
+    .digest("hex");
+
+  // Rotate atomically: remove the used token and store the new one together.
+  await prisma.$transaction([
+    prisma.refreshToken.delete({ where: { token: hashedToken } }),
+    prisma.refreshToken.create({
+      data: {
+        token: newHashedToken,
+        userId: payload.userId,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    }),
+  ]);
 
   return newTokens;
 };
